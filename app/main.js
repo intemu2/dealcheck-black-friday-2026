@@ -1,78 +1,76 @@
-// DealCheck wiring: hash routes for the list and for one deal, and live
-// filtering that re-renders only the grid, so typing never loses the page.
-//
-//   #/            the board, with search and filters
-//   #/deal/<id>   one deal, with its source and check time
-//
-// window.__shotReady is false while a page renders and true once it is on
-// screen, so a screenshot script knows when to capture.
+// DealCheck wiring: hash routing (#/ board, #/deal/<id> detail), search, filters
+// and sorting over the deals in data.js. All state lives in this module.
+import { DEALS, VERDICT_RANK } from './data.js';
+import { boardHTML, detailHTML, money, pctOff, saved, stats } from './views.js';
 
-import { deals } from "./data.js";
-import { deal, list, missing, rows } from "./views.js";
+const $ = (id) => document.getElementById(id);
+const view = $('view');
+const countEl = $('count');
 
-const app = document.getElementById("app");
+const state = { q: '', category: '', store: '', mindisc: 0, verdict: '', sort: 'best' };
 
-const state = { q: "", category: "All", store: "All", minOff: 0, sort: "pct" };
-
-function readParams() {
-  // Shareable filtered views: #/?category=Audio&minOff=30&sort=saved
-  // (and #/?q=dyson). The form still owns the state after load.
-  const m = location.hash.match(/^#\/\?(.+)/);
-  if (!m) return;
-  const p = new URLSearchParams(m[1]);
-  if (p.get("q") !== null) state.q = p.get("q");
-  if (p.get("category")) state.category = p.get("category");
-  if (p.get("store")) state.store = p.get("store");
-  if (p.get("minOff") !== null) state.minOff = Number(p.get("minOff")) || 0;
-  if (p.get("sort")) state.sort = p.get("sort");
+function fillSelect(el, values, allLabel) {
+  el.innerHTML = '<option value="">' + allLabel + '</option>' +
+    values.map((v) => '<option value="' + v + '">' + v + '</option>').join('');
 }
 
-function renderList() {
-  document.title = "DealCheck — Black Friday 2026";
-  app.innerHTML = list(deals, state);
-  const grid = document.getElementById("grid");
-  const form = document.getElementById("filters");
-  form.addEventListener("input", () => {
-    state.q = form.q.value;
-    state.category = form.category.value;
-    state.store = form.store.value;
-    state.minOff = Number(form.minOff.value);
-    state.sort = form.sort.value;
-    grid.innerHTML = rows(deals, state);
-    const count = document.querySelector(".stats");
-    if (count) {
-      const shown = grid.querySelectorAll(".card").length;
-      const total = deals.reduce((s, d) => s + (d.was - d.price), 0).toLocaleString("en-US");
-      count.textContent = `${shown} of ${deals.length} deals shown · $${total} total savings across the board`;
-    }
+function applyFilters() {
+  const q = state.q.trim().toLowerCase();
+  let list = DEALS.filter((d) => {
+    if (q && !(d.title + ' ' + d.store + ' ' + d.category).toLowerCase().includes(q)) return false;
+    if (state.category && d.category !== state.category) return false;
+    if (state.store && d.store !== state.store) return false;
+    if (state.verdict && d.verdict !== state.verdict) return false;
+    if (pctOff(d) < state.mindisc) return false;
+    return true;
   });
-  form.addEventListener("submit", (e) => e.preventDefault());
-  app.addEventListener("click", (e) => {
-    if (e.target.closest("[data-clear]")) {
-      state.q = "";
-      state.category = "All";
-      state.store = "All";
-      state.minOff = 0;
-      state.sort = "pct";
-      render();
-    }
-  });
+  if (state.sort === 'best') {
+    list = list.slice().sort((a, b) => (VERDICT_RANK[a.verdict] - VERDICT_RANK[b.verdict]) || (pctOff(b) - pctOff(a)));
+  } else if (state.sort === 'discount') {
+    list = list.slice().sort((a, b) => pctOff(b) - pctOff(a));
+  } else if (state.sort === 'saving') {
+    list = list.slice().sort((a, b) => saved(b) - saved(a));
+  } else if (state.sort === 'price') {
+    list = list.slice().sort((a, b) => a.price - b.price);
+  }
+  return list;
 }
 
 function render() {
-  window.__shotReady = false;
-  readParams();
-  const match = location.hash.match(/^#\/deal\/([^/?]+)/);
-  if (match) {
-    const found = deals.find((d) => d.id === decodeURIComponent(match[1]));
-    document.title = `${found ? found.title : "Not found"} | DealCheck`;
-    app.innerHTML = found ? deal(found) : missing();
-  } else {
-    renderList();
+  const hash = location.hash || '#/';
+  const m = hash.match(/^#\/deal\/([\w-]+)$/);
+  const filters = $('filters');
+  if (m) {
+    const d = DEALS.find((x) => x.id === m[1]);
+    filters.style.display = 'none';
+    countEl.textContent = '';
+    view.innerHTML = d ? detailHTML(d) : '<div class="empty">That deal is not on this board.</div>';
+    window.scrollTo(0, 0);
+    return;
   }
-  window.scrollTo(0, 0);
-  window.__shotReady = true;
+  filters.style.display = '';
+  const list = applyFilters();
+  countEl.textContent = 'Showing ' + list.length + ' of ' + DEALS.length + ' deals';
+  view.innerHTML = boardHTML(list);
 }
 
-window.addEventListener("hashchange", render);
-render();
+function init() {
+  const s = stats();
+  $('intro').textContent = 'Every deal below was checked on 28 November 2026 at its store or in a named deals roundup. ' +
+    s.lows + ' are new lows \u2014 the lowest price ever \u2014 ' + s.strong + ' are strong, ' + s.routine +
+    ' are routine, and none is inflated. Total saving across the board: ' + money(s.total) + '.';
+  $('stats').textContent = s.n + ' deals \u00b7 ' + s.stores + ' stores \u00b7 ' + s.cats + ' categories \u00b7 ' +
+    money(s.total) + ' total saved \u00b7 ' + s.lows + ' new lows';
+  fillSelect($('category'), [...new Set(DEALS.map((d) => d.category))].sort(), 'All categories');
+  fillSelect($('store'), [...new Set(DEALS.map((d) => d.store))].sort(), 'All stores');
+  $('q').addEventListener('input', (e) => { state.q = e.target.value; render(); });
+  $('category').addEventListener('change', (e) => { state.category = e.target.value; render(); });
+  $('store').addEventListener('change', (e) => { state.store = e.target.value; render(); });
+  $('mindisc').addEventListener('change', (e) => { state.mindisc = Number(e.target.value); render(); });
+  $('verdict').addEventListener('change', (e) => { state.verdict = e.target.value; render(); });
+  $('sort').addEventListener('change', (e) => { state.sort = e.target.value; render(); });
+  window.addEventListener('hashchange', render);
+  render();
+}
+
+init();

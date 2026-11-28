@@ -1,16 +1,68 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DealCheck — Black Friday 2026</title>
-<meta name="description" content="Twelve Black Friday 2026 deals, checked one by one, each with its store, sale price, usual price and check time — and a badge that says whether it is really a deal.">
-<link rel="stylesheet" href="style.css">
-<script type="module" src="main.js"></script>
+<title>DealCheck — Black Friday deals worth your money</title>
+<link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<header><a href="#/">DealCheck</a><span>Black Friday 2026 · 12 checked deals</span></header>
-<main id="app"></main>
-<footer>Prices were read from published deal roundups and retailer releases on 27 November 2026. Prices change hourly — check the store page before buying. DealCheck is not affiliated with Amazon, Best Buy or Walmart.</footer>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#/">DealCheck</a>
+    <span class="topbar-note">Black Friday 2026 &middot; checked 28 Nov 2026</span>
+  </div>
+</header>
+<main class="wrap" id="app">
+  <h1>Black Friday deals worth your money</h1>
+  <p class="intro" id="intro"></p>
+  <p class="stats" id="stats"></p>
+  <section class="filters" id="filters">
+    <label>Search
+      <input id="q" type="search" placeholder="TV, headphones, LEGO&hellip;" autocomplete="off">
+    </label>
+    <label>Category
+      <select id="category"></select>
+    </label>
+    <label>Store
+      <select id="store"></select>
+    </label>
+    <label>Min discount
+      <select id="mindisc">
+        <option value="0">Any discount</option>
+        <option value="20">20% off or more</option>
+        <option value="30">30% off or more</option>
+        <option value="40">40% off or more</option>
+        <option value="50">50% off or more</option>
+      </select>
+    </label>
+    <label>Verdict
+      <select id="verdict">
+        <option value="">Any verdict</option>
+        <option value="newlow">New low</option>
+        <option value="strong">Strong</option>
+        <option value="routine">Routine</option>
+        <option value="inflated">Inflated</option>
+      </select>
+    </label>
+    <label>Sort
+      <select id="sort">
+        <option value="best">Best deals first</option>
+        <option value="discount">Biggest % off</option>
+        <option value="saving">Biggest saving $</option>
+        <option value="price">Lowest price</option>
+      </select>
+    </label>
+  </section>
+  <p class="count" id="count"></p>
+  <div id="view"></div>
+  <footer class="foot">
+    Prices were checked on 28 November 2026. Prices change hourly and stock runs
+    out &mdash; check the store page before buying. DealCheck is not affiliated
+    with Amazon, Best Buy, Walmart, Target, Home Depot, Kohl&rsquo;s, Oura, Ring,
+    RingConn, or ASUS.
+  </footer>
+</main>
+<script type="module" src="./main.js"></script>
 </body>
 </html>
